@@ -1,0 +1,8 @@
+{
+  "name": "WMS Rhiany Barto",
+  "description": "Sistema simplificado de gerenciamento de armazém (WMS) com mapa visual de 150 posições, recebimento (putaway), saída (picking), busca de produtos, ajustes manuais e persistência em localStorage.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

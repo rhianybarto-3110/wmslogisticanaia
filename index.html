@@ -1,0 +1,3476 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RHIANY BARTO · WMS — Sistema de Gerenciamento de Armazém</title>
+  <meta name="description" content="Sistema simplificado de gerenciamento de armazém (WMS) com mapa visual de 150 posições, recebimento (putaway), saída (picking), busca de produtos, ajustes manuais e persistência em localStorage." />
+  <meta property="og:title" content="WMS Rhiany Barto" />
+  <meta property="og:description" content="Sistema simplificado de gerenciamento de armazém (WMS) com mapa visual de 150 posições, recebimento (putaway), saída (picking), busca de produtos, ajustes manuais e persistência em localStorage." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <!-- Tipografia editorial e técnica (funciona offline com fallbacks nativos) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    /* =========================================================================
+       IDENTIDADE VISUAL — RHIANY BARTO WMS
+       Paleta curada (60-30-10):
+       - 60% Canvas Bege Suave (#F7F2EC / #EFE7DD)
+       - 30% Superfícies Marfim e Bordas Areia (#FFFDFB / #E3D6C7)
+       - 10% Destaques Roxo Profundo (#5B2E8A) e Rosa Elegante (#C4557D)
+       Contraste WCAG AA garantido em todos os textos e estados.
+       ========================================================================= */
+    :root {
+      --bg-canvas: #F7F2EC;
+      --bg-subtle: #EFE7DD;
+      --bg-surface: #FFFDFB;
+      --bg-surface-hover: #FAF5EF;
+
+      --border-hairline: #E3D6C7;
+      --border-strong: #CEBCAA;
+
+      --text-primary: #2B193D;
+      --text-secondary: #5F4C6C;
+      --text-muted: #7C6A88;
+
+      --purple-primary: #5B2E8A;
+      --purple-hover: #492272;
+      --purple-soft: #F3ECFA;
+      --purple-border: #C3A8E1;
+
+      --rose-primary: #C4557D;
+      --rose-deep: #9E335A;
+      --rose-hover: #AD4169;
+      --rose-soft: #FCEEF3;
+      --rose-border: #E2A9BF;
+
+      --beige-accent: #D7C3AE;
+      --beige-text: #6B5644;
+
+      --success-text: #1F6E4A;
+      --success-bg: #EAF6F0;
+      --success-border: #B5DFC9;
+
+      --danger-text: #A5284B;
+      --danger-bg: #FDF0F4;
+      --danger-border: #E8B5C4;
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+
+      --shadow-card: 0 1px 2px rgba(43, 25, 61, 0.04), 0 4px 14px rgba(43, 25, 61, 0.03);
+      --shadow-elevated: 0 12px 32px rgba(43, 25, 61, 0.12);
+
+      --font-display: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Reset & Base */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      font-size: 16px;
+      color: var(--text-primary);
+      background-color: var(--bg-canvas);
+    }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      line-height: 1.5;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input, select, textarea {
+      font-family: inherit;
+      font-size: inherit;
+      color: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      background: transparent;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--purple-primary);
+      outline-offset: 2px;
+    }
+
+    .mono, .tabular {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+    }
+
+    /* =========================================================================
+       CABEÇALHO PRINCIPAL (CONTRATO DE 3 ZONAS EM LINHA ÚNICA)
+       ========================================================================= */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background-color: rgba(255, 253, 251, 0.94);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border-hairline);
+    }
+
+    .topbar-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 0 28px;
+      height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 32px;
+    }
+
+    /* Zona 1: Identidade RHIANY BARTO destacada */
+    .brand-mark {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .brand-emblem {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--purple-primary) 0%, var(--rose-primary) 100%);
+      color: #FFFDFB;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: 0.02em;
+      flex-shrink: 0;
+    }
+
+    .brand-name {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 19px;
+      letter-spacing: 0.04em;
+      color: var(--purple-primary);
+      white-space: nowrap;
+    }
+
+    /* Zona 2: Navegação limpa em texto */
+    .topbar-nav {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .nav-link {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-decoration: none;
+      padding: 8px 2px;
+      position: relative;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: color 150ms var(--ease-out);
+    }
+
+    .nav-link:hover,
+    .nav-link.is-active {
+      color: var(--purple-primary);
+    }
+
+    .nav-link::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 2px;
+      background-color: var(--rose-primary);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 180ms var(--ease-out);
+    }
+
+    .nav-link:hover::after,
+    .nav-link.is-active::after {
+      transform: scaleX(1);
+    }
+
+    /* Zona 3: Ação primária única */
+    .topbar-action {
+      flex-shrink: 0;
+    }
+
+    /* =========================================================================
+       BOTÕES PADRÃO (PADDING PROPORCIONAL 2:1, LINHA ÚNICA)
+       ========================================================================= */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 9px 18px;
+      border-radius: var(--radius-sm);
+      font-size: 13.5px;
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background-color 150ms var(--ease-out), border-color 150ms var(--ease-out), color 150ms var(--ease-out), transform 150ms var(--ease-out);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn-primary {
+      background-color: var(--purple-primary);
+      color: #FFFDFB;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--purple-hover);
+    }
+
+    .btn-rose {
+      background-color: var(--rose-primary);
+      color: #FFFDFB;
+    }
+
+    .btn-rose:hover {
+      background-color: var(--rose-hover);
+    }
+
+    .btn-secondary {
+      background-color: var(--bg-surface);
+      color: var(--text-primary);
+      border: 1px solid var(--border-strong);
+    }
+
+    .btn-secondary:hover {
+      background-color: var(--bg-subtle);
+      border-color: var(--purple-border);
+    }
+
+    .btn-ghost {
+      color: var(--text-secondary);
+      padding: 8px 12px;
+      min-height: 36px;
+    }
+
+    .btn-ghost:hover {
+      background-color: var(--bg-subtle);
+      color: var(--purple-primary);
+    }
+
+    .btn-danger-outline {
+      background-color: var(--bg-surface);
+      color: var(--danger-text);
+      border: 1px solid var(--danger-border);
+    }
+
+    .btn-danger-outline:hover {
+      background-color: var(--danger-bg);
+    }
+
+    .btn-sm {
+      min-height: 34px;
+      padding: 6px 12px;
+      font-size: 12.5px;
+    }
+
+    .btn-block {
+      width: 100%;
+    }
+
+    /* =========================================================================
+       LAYOUT PRINCIPAL DO WORKSPACE (1440px DESKTOP)
+       ========================================================================= */
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 28px 28px 56px;
+    }
+
+    /* Cabeçalho de contexto da página */
+    .page-intro {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-hairline);
+    }
+
+    .page-title {
+      font-family: var(--font-display);
+      font-size: clamp(1.5rem, 2.2vw, 2rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      text-wrap: balance;
+      line-height: 1.2;
+    }
+
+    .page-meta {
+      margin-top: 6px;
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .meta-sep {
+      color: var(--beige-accent);
+      user-select: none;
+    }
+
+    .persistence-note {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      text-align: right;
+    }
+
+    /* =========================================================================
+       DASHBOARD DE INDICADORES (4 COLUNAS EM LINHA + BARRA POR RUA)
+       ========================================================================= */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .kpi-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .kpi-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .kpi-value-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .kpi-value {
+      font-family: var(--font-display);
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-primary);
+    }
+
+    .kpi-value.accent-purple { color: var(--purple-primary); }
+    .kpi-value.accent-rose { color: var(--rose-deep); }
+    .kpi-value.accent-beige { color: var(--beige-text); }
+
+    .kpi-sub {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 7px;
+      border-radius: 99px;
+      background-color: var(--bg-subtle);
+      overflow: hidden;
+      display: flex;
+    }
+
+    .progress-fill-occupied {
+      height: 100%;
+      background: linear-gradient(90deg, var(--purple-primary), var(--rose-primary));
+      transition: width 260ms var(--ease-out);
+    }
+
+    .progress-fill-unavailable {
+      height: 100%;
+      background-color: var(--rose-border);
+      transition: width 260ms var(--ease-out);
+    }
+
+    /* Resumo rápido de ocupação por Rua (interativo para filtrar) */
+    .street-summary-bar {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .street-stat-btn {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      text-align: left;
+      transition: border-color 150ms var(--ease-out), background-color 150ms var(--ease-out), transform 150ms var(--ease-out);
+    }
+
+    .street-stat-btn:hover {
+      border-color: var(--purple-border);
+      background-color: var(--bg-surface-hover);
+    }
+
+    .street-stat-btn.is-selected {
+      border-color: var(--purple-primary);
+      background-color: var(--purple-soft);
+    }
+
+    .street-stat-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .street-stat-name {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .street-stat-pct {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--purple-primary);
+    }
+
+    .street-stat-detail {
+      margin-top: 6px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* =========================================================================
+       GRID PRINCIPAL: MAPA VISUAL (ESQUERDA) + PAINEL OPERACIONAL (DIREITA)
+       ========================================================================= */
+    .workspace-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 410px;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .panel {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+    }
+
+    .panel-header {
+      padding: 20px 22px 16px;
+      border-bottom: 1px solid var(--border-hairline);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .panel-title {
+      font-family: var(--font-display);
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .panel-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .panel-body {
+      padding: 20px 22px;
+    }
+
+    /* =========================================================================
+       BUSCA DE PRODUTOS E FILTROS DO MAPA
+       ========================================================================= */
+    .search-toolbar {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border-hairline);
+      background-color: #FCF9F5;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+
+    .search-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 14px;
+      width: 17px;
+      height: 17px;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 44px;
+      padding: 0 96px 0 42px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      background-color: var(--bg-surface);
+      font-size: 14px;
+      color: var(--text-primary);
+      transition: border-color 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--purple-primary);
+      box-shadow: 0 0 0 3px rgba(91, 46, 138, 0.12);
+    }
+
+    .search-clear-btn {
+      position: absolute;
+      right: 10px;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--rose-deep);
+      border-radius: 5px;
+      display: none;
+    }
+
+    .search-clear-btn:hover {
+      background-color: var(--rose-soft);
+    }
+
+    .search-clear-btn.is-visible {
+      display: inline-flex;
+    }
+
+    /* Resultados da busca logo abaixo do campo */
+    .search-results-box {
+      display: none;
+      border-top: 1px solid var(--border-hairline);
+      padding-top: 14px;
+    }
+
+    .search-results-box.is-visible {
+      display: block;
+    }
+
+    .search-results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .search-results-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .search-result-item {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-sm);
+      transition: border-color 140ms var(--ease-out), background-color 140ms var(--ease-out);
+    }
+
+    .search-result-item:hover {
+      border-color: var(--rose-primary);
+      background-color: var(--rose-soft);
+    }
+
+    .search-result-main {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .search-result-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .search-result-loc {
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .search-empty {
+      font-size: 13px;
+      color: var(--text-muted);
+      padding: 12px 0 4px;
+    }
+
+    /* Barra de filtros segmentados + Legenda acessível */
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .segmented-group {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      padding: 4px;
+      background-color: var(--bg-subtle);
+      border-radius: 8px;
+    }
+
+    .seg-btn {
+      padding: 6px 11px;
+      min-height: 32px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background-color 140ms var(--ease-out), color 140ms var(--ease-out);
+    }
+
+    .seg-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .seg-btn.is-active {
+      background-color: var(--bg-surface);
+      color: var(--purple-primary);
+      box-shadow: 0 1px 2px rgba(43, 25, 61, 0.08);
+    }
+
+    .legend-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+      font-size: 12.5px;
+      color: var(--text-secondary);
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      white-space: nowrap;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .swatch-livre {
+      background-color: var(--bg-surface);
+      border: 1.5px dashed var(--border-strong);
+    }
+
+    .swatch-ocupado {
+      background-color: var(--purple-soft);
+      border: 1.5px solid var(--purple-primary);
+    }
+
+    .swatch-indisponivel {
+      background: repeating-linear-gradient(
+        -45deg,
+        #FCEEF3,
+        #FCEEF3 3px,
+        #F4D3E0 3px,
+        #F4D3E0 6px
+      );
+      border: 1.5px solid var(--rose-primary);
+    }
+
+    /* =========================================================================
+       MAPA VISUAL DAS 150 POSIÇÕES (6 RUAS × 5 MÓDULOS × 5 NÍVEIS)
+       ========================================================================= */
+    .warehouse-map {
+      padding: 20px 22px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .street-block {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .street-block + .street-block {
+      padding-top: 24px;
+      border-top: 1px solid var(--border-hairline);
+    }
+
+    .street-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .street-title {
+      font-family: var(--font-display);
+      font-size: 15.5px;
+      font-weight: 700;
+      color: var(--purple-primary);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .street-counts {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Grid dos 5 módulos porta-paletes por rua */
+    .modules-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .rack-module {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background-color: #FAF6F0;
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      padding: 10px;
+    }
+
+    .rack-module-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border-hairline);
+    }
+
+    .rack-module-name {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .rack-module-hint {
+      font-size: 10.5px;
+      color: var(--text-muted);
+    }
+
+    .levels-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    /* Célula individual de posição (Nível 5 no topo -> Nível 1 no piso) */
+    .slot-cell {
+      width: 100%;
+      min-height: 46px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+      text-align: left;
+      position: relative;
+      transition: transform 140ms var(--ease-out), border-color 140ms var(--ease-out), background-color 140ms var(--ease-out), box-shadow 140ms var(--ease-out);
+    }
+
+    .slot-cell:hover {
+      transform: translateY(-1px);
+      z-index: 2;
+    }
+
+    /* Estado: LIVRE */
+    .slot-cell.status-Livre {
+      background-color: var(--bg-surface);
+      border: 1px dashed var(--border-strong);
+      color: var(--beige-text);
+    }
+
+    .slot-cell.status-Livre:hover {
+      border-style: solid;
+      border-color: var(--purple-primary);
+      background-color: #FBF8FE;
+    }
+
+    /* Estado: OCUPADO */
+    .slot-cell.status-Ocupado {
+      background-color: var(--purple-soft);
+      border: 1.5px solid #966FD1;
+      color: var(--text-primary);
+    }
+
+    .slot-cell.status-Ocupado:hover {
+      background-color: #EADDF8;
+      border-color: var(--purple-primary);
+    }
+
+    /* Estado: INDISPONÍVEL (padrão hachurado + texto explícito) */
+    .slot-cell.status-Indisponivel {
+      background: repeating-linear-gradient(
+        -45deg,
+        #FCEEF3,
+        #FCEEF3 5px,
+        #F6DAE5 5px,
+        #F6DAE5 10px
+      );
+      border: 1px solid var(--rose-border);
+      color: var(--rose-deep);
+    }
+
+    .slot-cell.status-Indisponivel:hover {
+      border-color: var(--rose-primary);
+    }
+
+    /* Selecionado pelo usuário */
+    .slot-cell.is-selected {
+      box-shadow: 0 0 0 2.5px var(--purple-primary);
+      border-color: var(--purple-primary);
+      border-style: solid;
+      z-index: 3;
+    }
+
+    /* Destacado pela busca */
+    .slot-cell.is-match {
+      box-shadow: 0 0 0 2.5px var(--rose-primary), 0 4px 12px rgba(196, 85, 125, 0.28);
+      border-color: var(--rose-primary);
+      border-style: solid;
+      z-index: 4;
+    }
+
+    /* Atenuado quando filtrado */
+    .slot-cell.is-dimmed {
+      opacity: 0.28;
+    }
+
+    .slot-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+      width: 100%;
+    }
+
+    .slot-level {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      opacity: 0.78;
+      flex-shrink: 0;
+    }
+
+    .slot-qty {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--purple-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .slot-state-label {
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      width: 100%;
+    }
+
+    .slot-cell.status-Livre .slot-state-label {
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .slot-cell.status-Ocupado .slot-state-label {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--text-primary);
+    }
+
+    .slot-cell.status-Indisponivel .slot-state-label {
+      font-size: 10.5px;
+      color: var(--rose-deep);
+    }
+
+    .rack-floor-line {
+      height: 3px;
+      border-radius: 2px;
+      background-color: var(--beige-accent);
+      margin-top: 2px;
+    }
+
+    /* =========================================================================
+       PAINEL OPERACIONAL LATERAL (STICKY NO DESKTOP)
+       ========================================================================= */
+    .ops-panel {
+      position: sticky;
+      top: 88px;
+    }
+
+    .ops-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      padding: 6px;
+      background-color: var(--bg-subtle);
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      border-bottom: 1px solid var(--border-hairline);
+    }
+
+    .ops-tab-btn {
+      padding: 9px 6px;
+      min-height: 38px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      text-align: center;
+      transition: background-color 140ms var(--ease-out), color 140ms var(--ease-out);
+    }
+
+    .ops-tab-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .ops-tab-btn.is-active {
+      background-color: var(--bg-surface);
+      color: var(--purple-primary);
+      box-shadow: 0 1px 3px rgba(43, 25, 61, 0.08);
+    }
+
+    .ops-pane {
+      display: none;
+      padding: 20px 22px 22px;
+    }
+
+    .ops-pane.is-active {
+      display: block;
+    }
+
+    .pane-heading {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .pane-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 18px;
+    }
+
+    /* Formulários */
+    .form-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .field-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .field-label {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .field-link-btn {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--rose-deep);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .field-link-btn:hover {
+      color: var(--purple-primary);
+    }
+
+    .input, .select, .textarea {
+      width: 100%;
+      min-height: 40px;
+      padding: 8px 12px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      background-color: var(--bg-surface);
+      font-size: 13.5px;
+      color: var(--text-primary);
+      transition: border-color 140ms var(--ease-out), box-shadow 140ms var(--ease-out);
+    }
+
+    .textarea {
+      min-height: 68px;
+      resize: vertical;
+    }
+
+    .input:focus, .select:focus, .textarea:focus {
+      outline: none;
+      border-color: var(--purple-primary);
+      box-shadow: 0 0 0 3px rgba(91, 46, 138, 0.12);
+    }
+
+    .address-select-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .field-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .slot-status-notice {
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 12.5px;
+      border: 1px solid var(--border-hairline);
+      background-color: #FAF6F0;
+      color: var(--text-secondary);
+    }
+
+    .slot-status-notice.notice-ok {
+      background-color: var(--success-bg);
+      border-color: var(--success-border);
+      color: var(--success-text);
+    }
+
+    .slot-status-notice.notice-warn {
+      background-color: var(--danger-bg);
+      border-color: var(--danger-border);
+      color: var(--danger-text);
+    }
+
+    .form-error {
+      display: none;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      background-color: var(--danger-bg);
+      border: 1px solid var(--danger-border);
+      color: var(--danger-text);
+      font-size: 12.5px;
+      font-weight: 500;
+    }
+
+    .form-error.is-visible {
+      display: block;
+    }
+
+    .quick-qty-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .quick-qty-row .btn {
+      flex: 1;
+      min-height: 32px;
+      padding: 5px 8px;
+      font-size: 12px;
+    }
+
+    /* Inspetor de Posição Selecionada */
+    .inspector-address {
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--purple-primary);
+      margin-bottom: 4px;
+    }
+
+    .inspector-meta {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .detail-list {
+      border-top: 1px solid var(--border-hairline);
+      margin-bottom: 18px;
+    }
+
+    .detail-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-hairline);
+      font-size: 13.5px;
+    }
+
+    .detail-key {
+      color: var(--text-muted);
+      font-size: 12.5px;
+      flex-shrink: 0;
+    }
+
+    .detail-val {
+      color: var(--text-primary);
+      font-weight: 600;
+      text-align: right;
+      word-break: break-word;
+    }
+
+    .inspector-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* =========================================================================
+       SEÇÃO INFERIOR: INVENTÁRIO ATUAL + HISTÓRICO DE MOVIMENTAÇÕES
+       ========================================================================= */
+    .lower-section {
+      margin-top: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .section-tabs-header {
+      padding: 16px 22px;
+      border-bottom: 1px solid var(--border-hairline);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+    }
+
+    .data-table th {
+      text-align: left;
+      padding: 11px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background-color: #FAF6F0;
+      border-bottom: 1px solid var(--border-hairline);
+      white-space: nowrap;
+    }
+
+    .data-table td {
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--border-hairline);
+      color: var(--text-primary);
+      vertical-align: middle;
+    }
+
+    .data-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .data-table tbody tr:hover {
+      background-color: var(--bg-surface-hover);
+    }
+
+    .num-col {
+      text-align: right !important;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .empty-table-state {
+      padding: 36px 22px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .empty-table-state p {
+      margin-bottom: 12px;
+    }
+
+    /* =========================================================================
+       BARRA DE GERENCIAMENTO DE DADOS E RODAPÉ
+       ========================================================================= */
+    .data-tools-bar {
+      margin-top: 28px;
+      padding: 18px 22px;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .data-tools-info h3 {
+      font-family: var(--font-display);
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .data-tools-info p {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .data-tools-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .site-footer {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 20px 28px 36px;
+      border-top: 1px solid var(--border-hairline);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+
+    .footer-brand {
+      font-family: var(--font-display);
+      font-weight: 700;
+      color: var(--purple-primary);
+    }
+
+    /* =========================================================================
+       NOTIFICAÇÕES TOAST & MODAL DE CONFIRMAÇÃO IN-APP
+       ========================================================================= */
+    .toast-region {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 70;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 380px;
+      pointer-events: none;
+    }
+
+    .toast {
+      pointer-events: auto;
+      background-color: var(--text-primary);
+      color: #FFFDFB;
+      padding: 13px 16px;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-elevated);
+      font-size: 13.5px;
+      line-height: 1.4;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      animation: toastIn 200ms var(--ease-out);
+    }
+
+    .toast.toast-error {
+      background-color: var(--rose-deep);
+    }
+
+    .toast-close {
+      color: rgba(255, 253, 251, 0.78);
+      font-size: 16px;
+      line-height: 1;
+      padding: 2px 4px;
+    }
+
+    .toast-close:hover {
+      color: #FFFDFB;
+    }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      background-color: rgba(43, 25, 61, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-backdrop.is-open {
+      display: flex;
+    }
+
+    .modal-dialog {
+      width: 100%;
+      max-width: 440px;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-elevated);
+    }
+
+    .modal-title {
+      font-family: var(--font-display);
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .modal-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    /* =========================================================================
+       RESPONSIVIDADE (TABLET & MOBILE)
+       ========================================================================= */
+    @media (max-width: 1180px) {
+      .workspace-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .ops-panel {
+        position: static;
+      }
+
+      .kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .street-summary-bar {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 820px) {
+      .topbar-inner {
+        padding: 0 16px;
+        height: 58px;
+        gap: 12px;
+      }
+
+      .topbar-nav {
+        display: none;
+      }
+
+      .brand-name {
+        font-size: 16px;
+      }
+
+      .container {
+        padding: 18px 16px 40px;
+      }
+
+      .modules-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .street-summary-bar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .persistence-note {
+        text-align: left;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- =======================================================================
+       CABEÇALHO — IDENTIDADE RHIANY BARTO + NAVEGAÇÃO + AÇÃO PRINCIPAL
+       ======================================================================= -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a href="#topo" class="brand-mark" aria-label="RHIANY BARTO WMS - Início">
+        <span class="brand-emblem" aria-hidden="true">RB</span>
+        <span class="brand-name">RHIANY BARTO</span>
+      </a>
+
+      <nav class="topbar-nav" aria-label="Navegação principal">
+        <a href="#mapa-secao" class="nav-link is-active" data-nav="mapa">Mapa Visual</a>
+        <a href="#operacoes-secao" class="nav-link" data-nav="putaway">Recebimento</a>
+        <a href="#operacoes-secao" class="nav-link" data-nav="picking">Saída</a>
+        <a href="#operacoes-secao" class="nav-link" data-nav="ajuste">Ajustes</a>
+        <a href="#inventario-secao" class="nav-link" data-nav="inventario">Inventário</a>
+      </nav>
+
+      <div class="topbar-action">
+        <button type="button" class="btn btn-primary" id="btn-header-putaway">
+          + Novo Recebimento
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="topo" class="container">
+    <!-- Introdução e contexto acadêmico -->
+    <section class="page-intro" aria-label="Resumo do armazém">
+      <div>
+        <h1 class="page-title">Sistema de Gerenciamento de Armazém (WMS)</h1>
+        <div class="page-meta">
+          <span>Programação da Produção · Curso ALP</span>
+          <span class="meta-sep" aria-hidden="true">·</span>
+          <span>6 Ruas (RUA-A a RUA-F)</span>
+          <span class="meta-sep" aria-hidden="true">·</span>
+          <span>30 Módulos</span>
+          <span class="meta-sep" aria-hidden="true">·</span>
+          <span>5 Níveis</span>
+          <span class="meta-sep" aria-hidden="true">·</span>
+          <span>150 Posições</span>
+        </div>
+      </div>
+      <div class="persistence-note" id="last-saved-label">
+        Dados salvos automaticamente no navegador
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         DASHBOARD DE OCUPAÇÃO (KPIs EM TEMPO REAL)
+         ===================================================================== -->
+    <section aria-label="Indicadores de ocupação do armazém">
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Taxa de Ocupação</div>
+          <div class="kpi-value-row">
+            <div class="kpi-value accent-purple" id="kpi-occupancy-pct">0,0%</div>
+            <div class="kpi-sub" id="kpi-operational-pct">0,0% útil</div>
+          </div>
+          <div class="progress-track" role="progressbar" aria-label="Percentual de ocupação do armazém" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="kpi-progress-bar">
+            <div class="progress-fill-occupied" id="kpi-bar-occupied" style="width: 0%"></div>
+            <div class="progress-fill-unavailable" id="kpi-bar-unavailable" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">Posições Livres</div>
+          <div class="kpi-value-row">
+            <div class="kpi-value accent-beige" id="kpi-free-count">0</div>
+            <div class="kpi-sub" id="kpi-free-pct">0,0% de 150</div>
+          </div>
+          <div class="kpi-sub">Disponíveis para recebimento imediato</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">Posições Ocupadas</div>
+          <div class="kpi-value-row">
+            <div class="kpi-value accent-purple" id="kpi-occupied-count">0</div>
+            <div class="kpi-sub" id="kpi-occupied-pct">0,0% de 150</div>
+          </div>
+          <div class="kpi-sub" id="kpi-units-summary">0 unidades · 0 SKUs distintos</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">Posições Indisponíveis</div>
+          <div class="kpi-value-row">
+            <div class="kpi-value accent-rose" id="kpi-unavailable-count">0</div>
+            <div class="kpi-sub" id="kpi-unavailable-pct">0,0% de 150</div>
+          </div>
+          <div class="kpi-sub" id="kpi-operational-count">150 posições operacionais</div>
+        </div>
+      </div>
+
+      <!-- Barra de ocupação por Rua (clique para filtrar o mapa) -->
+      <div class="street-summary-bar" id="street-summary-bar" aria-label="Resumo por rua"></div>
+    </section>
+
+    <!-- =====================================================================
+         WORKSPACE PRINCIPAL: MAPA DE 150 POSIÇÕES + OPERAÇÕES DO WMS
+         ===================================================================== -->
+    <div class="workspace-grid">
+      <!-- COLUNA ESQUERDA: BUSCA + FILTROS + MAPA VISUAL -->
+      <section class="panel" id="mapa-secao" aria-label="Mapa visual das 150 posições">
+        <!-- Barra de Busca de Produtos e Filtros -->
+        <div class="search-toolbar">
+          <div class="search-input-wrap">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              type="text"
+              id="search-input"
+              class="search-input"
+              placeholder="Buscar produto por SKU, nome ou endereço (ex.: RUA-A / MOD-02 / NIVEL-3)..."
+              autocomplete="off"
+              aria-label="Buscar produto no armazém"
+            />
+            <button type="button" id="btn-clear-search" class="search-clear-btn">Limpar</button>
+          </div>
+
+          <!-- Lista de resultados da busca com Rua, Módulo e Nível explícitos -->
+          <div class="search-results-box" id="search-results-box" aria-live="polite">
+            <div class="search-results-header">
+              <strong id="search-results-count">0 resultados encontrados</strong>
+              <span>Clique em "Localizar" para destacar no mapa</span>
+            </div>
+            <div class="search-results-list" id="search-results-list"></div>
+          </div>
+
+          <!-- Filtros de Rua, Estado e Legenda -->
+          <div class="filter-row">
+            <div class="segmented-group" id="street-filter-group" role="group" aria-label="Filtrar por rua">
+              <button type="button" class="seg-btn is-active" data-street="ALL">Todas</button>
+              <button type="button" class="seg-btn" data-street="RUA-A">RUA-A</button>
+              <button type="button" class="seg-btn" data-street="RUA-B">RUA-B</button>
+              <button type="button" class="seg-btn" data-street="RUA-C">RUA-C</button>
+              <button type="button" class="seg-btn" data-street="RUA-D">RUA-D</button>
+              <button type="button" class="seg-btn" data-street="RUA-E">RUA-E</button>
+              <button type="button" class="seg-btn" data-street="RUA-F">RUA-F</button>
+            </div>
+
+            <div class="segmented-group" id="status-filter-group" role="group" aria-label="Filtrar por estado">
+              <button type="button" class="seg-btn is-active" data-status="ALL">Todos</button>
+              <button type="button" class="seg-btn" data-status="Livre">Livre</button>
+              <button type="button" class="seg-btn" data-status="Ocupado">Ocupado</button>
+              <button type="button" class="seg-btn" data-status="Indisponivel">Indisponível</button>
+            </div>
+          </div>
+
+          <div class="filter-row">
+            <div class="legend-bar" aria-label="Legenda dos estados das posições">
+              <span class="legend-item">
+                <span class="swatch swatch-livre" aria-hidden="true"></span>
+                Livre
+              </span>
+              <span class="legend-item">
+                <span class="swatch swatch-ocupado" aria-hidden="true"></span>
+                Ocupado (SKU + Qtd.)
+              </span>
+              <span class="legend-item">
+                <span class="swatch swatch-indisponivel" aria-hidden="true"></span>
+                Indisponível (Bloqueado)
+              </span>
+            </div>
+            <span class="field-hint">Nível 5 (Topo) acima · Nível 1 (Piso) na base</span>
+          </div>
+        </div>
+
+        <!-- Container onde as 6 ruas × 5 módulos × 5 níveis são renderizados -->
+        <div class="warehouse-map" id="warehouse-map"></div>
+      </section>
+
+      <!-- COLUNA DIREITA: PAINEL OPERACIONAL (INSPEÇÃO, RECEBIMENTO, SAÍDA, AJUSTES) -->
+      <aside class="panel ops-panel" id="operacoes-secao" aria-label="Painel de operações do WMS">
+        <div class="ops-tabs" role="tablist" aria-label="Modos de operação">
+          <button type="button" class="ops-tab-btn is-active" role="tab" aria-selected="true" data-tab="inspector">Detalhes</button>
+          <button type="button" class="ops-tab-btn" role="tab" aria-selected="false" data-tab="putaway">Receber</button>
+          <button type="button" class="ops-tab-btn" role="tab" aria-selected="false" data-tab="picking">Saída</button>
+          <button type="button" class="ops-tab-btn" role="tab" aria-selected="false" data-tab="adjust">Ajustes</button>
+        </div>
+
+        <!-- ABA 1: DETALHES / INSPETOR DA POSIÇÃO SELECIONADA -->
+        <div class="ops-pane is-active" id="pane-inspector" role="tabpanel">
+          <div class="inspector-address" id="insp-address">RUA-A / MOD-01 / NIVEL-1</div>
+          <div class="inspector-meta" id="insp-meta">Rua A · Módulo 01 · Nível 1 (Piso)</div>
+
+          <div class="detail-list" id="insp-details"></div>
+
+          <div class="inspector-actions" id="insp-actions"></div>
+        </div>
+
+        <!-- ABA 2: FORMULÁRIO DE RECEBIMENTO (PUTAWAY) -->
+        <div class="ops-pane" id="pane-putaway" role="tabpanel">
+          <h2 class="pane-heading">Recebimento de Produto (Putaway)</h2>
+          <p class="pane-desc">Aloque mercadorias em uma posição livre do armazém.</p>
+
+          <form id="form-putaway" class="form-stack" novalidate>
+            <div class="field-group">
+              <label for="put-sku" class="field-label">Código / SKU *</label>
+              <input type="text" id="put-sku" class="input mono" placeholder="Ex.: SKU-1042" maxlength="32" required />
+            </div>
+
+            <div class="field-group">
+              <label for="put-name" class="field-label">Nome do Produto *</label>
+              <input type="text" id="put-name" class="input" placeholder="Ex.: Motor Elétrico Trifásico 2CV" maxlength="80" required />
+            </div>
+
+            <div class="field-group">
+              <label for="put-qty" class="field-label">Quantidade *</label>
+              <input type="number" id="put-qty" class="input tabular" placeholder="Ex.: 25" min="1" step="1" required />
+            </div>
+
+            <div class="field-group">
+              <div class="field-label-row">
+                <label class="field-label">Endereço de Destino *</label>
+                <button type="button" class="field-link-btn" id="btn-suggest-free">Sugerir posição livre</button>
+              </div>
+              <div class="address-select-row">
+                <select id="put-rua" class="select mono" aria-label="Rua de destino"></select>
+                <select id="put-mod" class="select mono" aria-label="Módulo de destino"></select>
+                <select id="put-nivel" class="select mono" aria-label="Nível de destino"></select>
+              </div>
+              <input
+                type="text"
+                id="put-address-text"
+                class="input mono"
+                placeholder="RUA-A / MOD-01 / NIVEL-1"
+                aria-label="Endereço formatado de destino"
+              />
+              <div class="slot-status-notice" id="put-slot-status">Verificando disponibilidade da posição...</div>
+            </div>
+
+            <div class="form-error" id="put-error" role="alert"></div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+              Confirmar Recebimento
+            </button>
+          </form>
+        </div>
+
+        <!-- ABA 3: REGISTRO DE SAÍDA (PICKING) -->
+        <div class="ops-pane" id="pane-picking" role="tabpanel">
+          <h2 class="pane-heading">Saída de Produto (Picking)</h2>
+          <p class="pane-desc">Retire itens parcialmente ou libere totalmente uma posição ocupada.</p>
+
+          <form id="form-picking" class="form-stack" novalidate>
+            <div class="field-group">
+              <label for="pick-address" class="field-label">Posição Ocupada *</label>
+              <select id="pick-address" class="select mono" required></select>
+            </div>
+
+            <div class="slot-status-notice" id="pick-item-info">
+              Selecione uma posição ocupada no mapa ou na lista acima.
+            </div>
+
+            <div class="field-group">
+              <label for="pick-qty" class="field-label">Quantidade de Saída *</label>
+              <input type="number" id="pick-qty" class="input tabular" placeholder="Ex.: 10" min="1" step="1" required />
+              <div class="quick-qty-row">
+                <button type="button" class="btn btn-secondary" id="btn-pick-one">Retirar 1</button>
+                <button type="button" class="btn btn-secondary" id="btn-pick-half">Metade</button>
+                <button type="button" class="btn btn-secondary" id="btn-pick-all">Saída Total</button>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label for="pick-note" class="field-label">Ordem / Observação (opcional)</label>
+              <input type="text" id="pick-note" class="input" placeholder="Ex.: Pedido OP-2026-08" maxlength="80" />
+            </div>
+
+            <div class="form-error" id="pick-error" role="alert"></div>
+
+            <button type="submit" class="btn btn-rose btn-block">
+              Registrar Saída
+            </button>
+          </form>
+        </div>
+
+        <!-- ABA 4: LANÇAMENTOS E AJUSTES MANUAIS -->
+        <div class="ops-pane" id="pane-adjust" role="tabpanel">
+          <h2 class="pane-heading">Lançamentos e Ajustes Manuais</h2>
+          <p class="pane-desc">Corrija o estado de qualquer posição, ajuste quantidades ou atualize dados do produto.</p>
+
+          <form id="form-adjust" class="form-stack" novalidate>
+            <div class="field-group">
+              <label class="field-label">Endereço da Posição *</label>
+              <div class="address-select-row">
+                <select id="adj-rua" class="select mono" aria-label="Rua para ajuste"></select>
+                <select id="adj-mod" class="select mono" aria-label="Módulo para ajuste"></select>
+                <select id="adj-nivel" class="select mono" aria-label="Nível para ajuste"></select>
+              </div>
+              <div class="field-hint mono" id="adj-address-preview">RUA-A / MOD-01 / NIVEL-1</div>
+            </div>
+
+            <div class="field-group">
+              <label for="adj-status" class="field-label">Estado da Posição *</label>
+              <select id="adj-status" class="select" required>
+                <option value="Livre">Livre (sem produto alocado)</option>
+                <option value="Ocupado">Ocupado (com produto em estoque)</option>
+                <option value="Indisponivel">Indisponível (bloqueado / manutenção)</option>
+              </select>
+            </div>
+
+            <!-- Campos exibidos quando estado = Ocupado -->
+            <div id="adj-product-fields" class="form-stack">
+              <div class="field-group">
+                <label for="adj-sku" class="field-label">Código / SKU *</label>
+                <input type="text" id="adj-sku" class="input mono" placeholder="Ex.: SKU-2050" maxlength="32" />
+              </div>
+
+              <div class="field-group">
+                <label for="adj-name" class="field-label">Nome do Produto *</label>
+                <input type="text" id="adj-name" class="input" placeholder="Ex.: Rolamento Esférico 6205" maxlength="80" />
+              </div>
+
+              <div class="field-group">
+                <label for="adj-qty" class="field-label">Quantidade Ajustada *</label>
+                <input type="number" id="adj-qty" class="input tabular" placeholder="Ex.: 40" min="1" step="1" />
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label for="adj-note" class="field-label">Motivo / Observação do Ajuste</label>
+              <textarea id="adj-note" class="textarea" placeholder="Ex.: Acerto de inventário rotativo ou bloqueio para manutenção estrutural." maxlength="140"></textarea>
+            </div>
+
+            <div class="form-error" id="adj-error" role="alert"></div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+              Salvar Ajuste Manual
+            </button>
+          </form>
+        </div>
+      </aside>
+    </div>
+
+    <!-- =====================================================================
+         SEÇÃO INFERIOR: INVENTÁRIO ATUAL E HISTÓRICO DE MOVIMENTAÇÕES
+         ===================================================================== -->
+    <section class="lower-section" id="inventario-secao" aria-label="Tabelas de inventário e histórico">
+      <div class="panel">
+        <div class="section-tabs-header">
+          <div>
+            <h2 class="panel-title" id="lower-section-title">Inventário Atual</h2>
+            <p class="panel-subtitle" id="lower-section-subtitle">Todos os produtos atualmente armazenados nas posições ocupadas.</p>
+          </div>
+          <div class="segmented-group" role="tablist" aria-label="Alternar entre inventário e histórico">
+            <button type="button" class="seg-btn is-active" id="btn-view-inventory" role="tab" aria-selected="true">
+              Inventário (<span id="tab-inv-count" class="tabular">0</span>)
+            </button>
+            <button type="button" class="seg-btn" id="btn-view-history" role="tab" aria-selected="false">
+              Histórico (<span id="tab-hist-count" class="tabular">0</span>)
+            </button>
+          </div>
+        </div>
+
+        <!-- Tabela de Inventário -->
+        <div class="table-wrap" id="view-inventory">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Endereço</th>
+                <th>Rua</th>
+                <th>Módulo</th>
+                <th>Nível</th>
+                <th>SKU</th>
+                <th>Produto</th>
+                <th class="num-col">Quantidade</th>
+                <th class="num-col">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="inventory-tbody"></tbody>
+          </table>
+        </div>
+
+        <!-- Tabela de Histórico de Movimentações -->
+        <div class="table-wrap" id="view-history" style="display: none;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Data / Hora</th>
+                <th>Operação</th>
+                <th>Endereço</th>
+                <th>SKU / Produto</th>
+                <th>Detalhes</th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Barra de Persistência e Ferramentas de Dados -->
+      <div class="data-tools-bar" aria-label="Gerenciamento de dados locais">
+        <div class="data-tools-info">
+          <h3>Persistência de Dados (localStorage)</h3>
+          <p>Todas as movimentações e estados das 150 posições são salvos automaticamente no navegador.</p>
+        </div>
+        <div class="data-tools-actions">
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-load-sample">Carregar Exemplo</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-export-json">Exportar JSON</button>
+          <label class="btn btn-secondary btn-sm" for="input-import-json" role="button" tabindex="0">Importar JSON</label>
+          <input type="file" id="input-import-json" accept="application/json" style="display: none;" />
+          <button type="button" class="btn btn-danger-outline btn-sm" id="btn-reset-warehouse">Zerar Armazém</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div>
+      <span class="footer-brand">RHIANY BARTO</span> · WMS Didático · Programação da Produção (ALP)
+    </div>
+    <div>
+      Armazém Simulado: 6 Ruas × 5 Módulos × 5 Níveis = 150 Posições
+    </div>
+  </footer>
+
+  <!-- Região de notificações toast -->
+  <div class="toast-region" id="toast-region" aria-live="polite"></div>
+
+  <!-- Modal de confirmação acessível (sem window.confirm / window.alert) -->
+  <div class="modal-backdrop" id="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+    <div class="modal-dialog">
+      <h3 class="modal-title" id="confirm-modal-title">Confirmar ação</h3>
+      <p class="modal-text" id="confirm-modal-text"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="confirm-modal-cancel">Cancelar</button>
+        <button type="button" class="btn btn-rose" id="confirm-modal-ok">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =======================================================================
+       LÓGICA DA APLICAÇÃO WMS (JAVASCRIPT VANILLA MODULAR E COMENTADO)
+       ======================================================================= -->
+  <script>
+    (function () {
+      'use strict';
+
+      /* ---------------------------------------------------------------------
+         1. CONSTANTES DO ARMAZÉM SIMULADO (150 POSIÇÕES)
+         --------------------------------------------------------------------- */
+      const STORAGE_KEY = 'wms_rhiany_barto_alp_v1';
+      const RUAS = ['RUA-A', 'RUA-B', 'RUA-C', 'RUA-D', 'RUA-E', 'RUA-F'];
+      const MODULOS = ['MOD-01', 'MOD-02', 'MOD-03', 'MOD-04', 'MOD-05'];
+      const NIVEIS = ['NIVEL-1', 'NIVEL-2', 'NIVEL-3', 'NIVEL-4', 'NIVEL-5'];
+      // Ordem visual de exibição nos porta-paletes: Nível 5 (topo) -> Nível 1 (piso)
+      const NIVEIS_DISPLAY = ['NIVEL-5', 'NIVEL-4', 'NIVEL-3', 'NIVEL-2', 'NIVEL-1'];
+      const TOTAL_POSITIONS = RUAS.length * MODULOS.length * NIVEIS.length; // 150
+
+      // Expressão regular oficial do endereço: "RUA-A / MOD-02 / NIVEL-3"
+      const ADDRESS_REGEX = /^RUA-([A-F])\s*\/\s*MOD-0([1-5])\s*\/\s*NIVEL-([1-5])$/i;
+
+      /* ---------------------------------------------------------------------
+         2. ESTADO GLOBAL EM MEMÓRIA
+         --------------------------------------------------------------------- */
+      let state = {
+        slots: {},       // Mapa indexado pelo endereço completo "RUA-A / MOD-01 / NIVEL-1"
+        history: [],     // Lista cronológica reversa das movimentações
+        lastSavedAt: null
+      };
+
+      // Estado de interface (filtros, seleção, busca e aba ativa)
+      const ui = {
+        selectedAddress: 'RUA-A / MOD-01 / NIVEL-1',
+        streetFilter: 'ALL',
+        statusFilter: 'ALL',
+        searchQuery: '',
+        activeOpsTab: 'inspector',
+        lowerTab: 'inventory',
+        matchedAddresses: new Set(),
+        pendingConfirmAction: null
+      };
+
+      /* ---------------------------------------------------------------------
+         3. UTILITÁRIOS DE ENDEREÇO, FORMATAÇÃO E SANITIZAÇÃO
+         --------------------------------------------------------------------- */
+      function buildAddress(rua, modulo, nivel) {
+        return `${rua} / ${modulo} / ${nivel}`;
+      }
+
+      function parseAddress(rawAddress) {
+        if (typeof rawAddress !== 'string') return null;
+        const match = rawAddress.trim().match(ADDRESS_REGEX);
+        if (!match) return null;
+        const rua = `RUA-${match[1].toUpperCase()}`;
+        const modulo = `MOD-0${match[2]}`;
+        const nivel = `NIVEL-${match[3]}`;
+        return {
+          rua,
+          modulo,
+          nivel,
+          address: buildAddress(rua, modulo, nivel)
+        };
+      }
+
+      function formatPercent(value) {
+        return value.toLocaleString('pt-BR', {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1
+        }) + '%';
+      }
+
+      function formatDateTime(isoString) {
+        if (!isoString) return '—';
+        try {
+          const dt = new Date(isoString);
+          return dt.toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        } catch {
+          return '—';
+        }
+      }
+
+      function getNivelLabel(nivel) {
+        if (nivel === 'NIVEL-1') return 'Nível 1 (Piso)';
+        if (nivel === 'NIVEL-5') return 'Nível 5 (Topo)';
+        return `Nível ${nivel.split('-')[1]}`;
+      }
+
+      function getStatusDisplayLabel(status) {
+        if (status === 'Indisponivel') return 'Indisponível';
+        return status;
+      }
+
+      function escapeHtml(str) {
+        return String(str ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      /* ---------------------------------------------------------------------
+         4. GERAÇÃO DO ARMAZÉM VAZIO E CENÁRIO INICIAL DIDÁTICO
+         --------------------------------------------------------------------- */
+      function createEmptySlots() {
+        const slots = {};
+        for (const rua of RUAS) {
+          for (const modulo of MODULOS) {
+            for (const nivel of NIVEIS) {
+              const address = buildAddress(rua, modulo, nivel);
+              slots[address] = {
+                address,
+                rua,
+                modulo,
+                nivel,
+                status: 'Livre', // 'Livre' | 'Ocupado' | 'Indisponivel'
+                sku: '',
+                productName: '',
+                quantity: 0,
+                note: '',
+                updatedAt: null
+              };
+            }
+          }
+        }
+        return slots;
+      }
+
+      function buildSampleState() {
+        const slots = createEmptySlots();
+        const now = new Date().toISOString();
+
+        const sampleOccupied = [
+          ['RUA-A / MOD-01 / NIVEL-1', 'SKU-1001', 'Chapa de Aço Carbono 2mm', 45],
+          ['RUA-A / MOD-01 / NIVEL-2', 'SKU-1002', 'Perfil de Alumínio 40x40', 80],
+          ['RUA-A / MOD-02 / NIVEL-3', 'SKU-1015', 'Motor Elétrico Trifásico 2CV', 12],
+          ['RUA-A / MOD-04 / NIVEL-1', 'SKU-1020', 'Rolamento Esférico 6205', 160],
+          ['RUA-B / MOD-01 / NIVEL-1', 'SKU-2004', 'Correia Dentada Industrial HTD', 95],
+          ['RUA-B / MOD-02 / NIVEL-2', 'SKU-2010', 'Sensor Indutivo M18 PNP', 64],
+          ['RUA-B / MOD-03 / NIVEL-4', 'SKU-2018', 'Válvula Pneumática 5/2 Vias', 38],
+          ['RUA-B / MOD-05 / NIVEL-1', 'SKU-2025', 'Cilindro Pneumático ISO 50mm', 22],
+          ['RUA-C / MOD-01 / NIVEL-1', 'SKU-3001', 'Caixa Plástica Organizadora 40L', 120],
+          ['RUA-C / MOD-02 / NIVEL-1', 'SKU-3001', 'Caixa Plástica Organizadora 40L', 90],
+          ['RUA-C / MOD-03 / NIVEL-2', 'SKU-3012', 'Filme Stretch 500mm 25 micras', 54],
+          ['RUA-C / MOD-04 / NIVEL-3', 'SKU-3019', 'Fita Adesiva Kraft 48mm', 210],
+          ['RUA-D / MOD-01 / NIVEL-2', 'SKU-4005', 'Inversor de Frequência 3CV', 14],
+          ['RUA-D / MOD-03 / NIVEL-1', 'SKU-4011', 'Cabo Flexível 2,5mm (Rolo 100m)', 35],
+          ['RUA-D / MOD-05 / NIVEL-3', 'SKU-4022', 'Disjuntor Tripolar 32A', 75],
+          ['RUA-E / MOD-02 / NIVEL-1', 'SKU-5008', 'Óleo Lubrificante ISO VG 68', 28],
+          ['RUA-E / MOD-04 / NIVEL-2', 'SKU-5014', 'Filtro Hidráulico de Retorno', 42],
+          ['RUA-F / MOD-01 / NIVEL-1', 'SKU-6003', 'Kit Parafusos Sextavados M8', 300],
+          ['RUA-F / MOD-03 / NIVEL-2', 'SKU-6011', 'Luva de Proteção Nitrílica G', 180],
+          ['RUA-F / MOD-05 / NIVEL-1', 'SKU-6020', 'Capacete de Segurança Classe B', 50]
+        ];
+
+        const sampleUnavailable = [
+          ['RUA-A / MOD-05 / NIVEL-5', 'Manutenção na longarina superior'],
+          ['RUA-B / MOD-04 / NIVEL-5', 'Bloqueio preventivo de carga máxima'],
+          ['RUA-C / MOD-05 / NIVEL-4', 'Acesso reservado para inspeção'],
+          ['RUA-D / MOD-02 / NIVEL-5', 'Reparo na proteção de coluna'],
+          ['RUA-E / MOD-01 / NIVEL-5', 'Área interditada temporariamente'],
+          ['RUA-F / MOD-04 / NIVEL-5', 'Manutenção de iluminação da rua']
+        ];
+
+        for (const [address, sku, productName, quantity] of sampleOccupied) {
+          if (slots[address]) {
+            slots[address].status = 'Ocupado';
+            slots[address].sku = sku;
+            slots[address].productName = productName;
+            slots[address].quantity = quantity;
+            slots[address].updatedAt = now;
+          }
+        }
+
+        for (const [address, note] of sampleUnavailable) {
+          if (slots[address]) {
+            slots[address].status = 'Indisponivel';
+            slots[address].note = note;
+            slots[address].updatedAt = now;
+          }
+        }
+
+        const history = [
+          {
+            id: 'hist-init-1',
+            timestamp: now,
+            type: 'Sistema',
+            address: 'RUA-A / MOD-02 / NIVEL-3',
+            summary: 'SKU-1015 · Motor Elétrico Trifásico 2CV',
+            detail: 'Carga inicial de demonstração do armazém (20 posições ocupadas, 6 indisponíveis).'
+          }
+        ];
+
+        return {
+          slots,
+          history,
+          lastSavedAt: now
+        };
+      }
+
+      /* ---------------------------------------------------------------------
+         5. PERSISTÊNCIA EM localStorage
+         --------------------------------------------------------------------- */
+      function saveState() {
+        state.lastSavedAt = new Date().toISOString();
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (err) {
+          showToast('Não foi possível salvar no localStorage (armazenamento cheio ou bloqueado).', true);
+        }
+        renderPersistenceLabel();
+      }
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) {
+            state = buildSampleState();
+            saveState();
+            return;
+          }
+          const parsed = JSON.parse(raw);
+          if (!parsed || typeof parsed.slots !== 'object') {
+            throw new Error('Estrutura inválida');
+          }
+          // Garante integridade das 150 posições mesmo após importações
+          const normalizedSlots = createEmptySlots();
+          for (const address of Object.keys(normalizedSlots)) {
+            const savedSlot = parsed.slots[address];
+            if (savedSlot && ['Livre', 'Ocupado', 'Indisponivel'].includes(savedSlot.status)) {
+              normalizedSlots[address] = {
+                ...normalizedSlots[address],
+                status: savedSlot.status,
+                sku: savedSlot.status === 'Ocupado' ? String(savedSlot.sku || '') : '',
+                productName: savedSlot.status === 'Ocupado' ? String(savedSlot.productName || '') : '',
+                quantity: savedSlot.status === 'Ocupado' ? Math.max(1, parseInt(savedSlot.quantity, 10) || 1) : 0,
+                note: String(savedSlot.note || ''),
+                updatedAt: savedSlot.updatedAt || null
+              };
+            }
+          }
+          state = {
+            slots: normalizedSlots,
+            history: Array.isArray(parsed.history) ? parsed.history.slice(0, 200) : [],
+            lastSavedAt: parsed.lastSavedAt || new Date().toISOString()
+          };
+        } catch {
+          state = buildSampleState();
+          saveState();
+        }
+      }
+
+      function addHistoryEntry(type, address, summary, detail) {
+        state.history.unshift({
+          id: 'hist-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+          timestamp: new Date().toISOString(),
+          type,
+          address,
+          summary,
+          detail
+        });
+        if (state.history.length > 200) {
+          state.history = state.history.slice(0, 200);
+        }
+      }
+
+      /* ---------------------------------------------------------------------
+         6. CÁLCULOS DO DASHBOARD E CONSULTAS
+         --------------------------------------------------------------------- */
+      function computeMetrics() {
+        let free = 0;
+        let occupied = 0;
+        let unavailable = 0;
+        let totalUnits = 0;
+        const distinctSkus = new Set();
+        const byStreet = {};
+
+        for (const rua of RUAS) {
+          byStreet[rua] = { free: 0, occupied: 0, unavailable: 0, total: 25 };
+        }
+
+        for (const slot of Object.values(state.slots)) {
+          if (slot.status === 'Livre') {
+            free++;
+            byStreet[slot.rua].free++;
+          } else if (slot.status === 'Ocupado') {
+            occupied++;
+            totalUnits += slot.quantity;
+            if (slot.sku) distinctSkus.add(slot.sku.toUpperCase());
+            byStreet[slot.rua].occupied++;
+          } else {
+            unavailable++;
+            byStreet[slot.rua].unavailable++;
+          }
+        }
+
+        const operational = TOTAL_POSITIONS - unavailable;
+        const occupancyPct = (occupied / TOTAL_POSITIONS) * 100;
+        const operationalOccupancyPct = operational > 0 ? (occupied / operational) * 100 : 0;
+
+        return {
+          free,
+          occupied,
+          unavailable,
+          operational,
+          totalUnits,
+          distinctSkusCount: distinctSkus.size,
+          occupancyPct,
+          operationalOccupancyPct,
+          freePct: (free / TOTAL_POSITIONS) * 100,
+          unavailablePct: (unavailable / TOTAL_POSITIONS) * 100,
+          byStreet
+        };
+      }
+
+      function getOccupiedSlotsSorted() {
+        return Object.values(state.slots)
+          .filter((s) => s.status === 'Ocupado')
+          .sort((a, b) => a.address.localeCompare(b.address));
+      }
+
+      function findFirstFreeAddress() {
+        for (const rua of RUAS) {
+          for (const modulo of MODULOS) {
+            for (const nivel of NIVEIS) {
+              const addr = buildAddress(rua, modulo, nivel);
+              if (state.slots[addr].status === 'Livre') {
+                return addr;
+              }
+            }
+          }
+        }
+        return null;
+      }
+
+      /* ---------------------------------------------------------------------
+         7. RENDERIZAÇÃO DA INTERFACE
+         --------------------------------------------------------------------- */
+      function renderPersistenceLabel() {
+        const el = document.getElementById('last-saved-label');
+        if (state.lastSavedAt) {
+          el.textContent = `Salvo em localStorage · ${formatDateTime(state.lastSavedAt)}`;
+        } else {
+          el.textContent = 'Salvamento automático ativo (localStorage)';
+        }
+      }
+
+      function renderDashboard() {
+        const m = computeMetrics();
+
+        document.getElementById('kpi-occupancy-pct').textContent = formatPercent(m.occupancyPct);
+        document.getElementById('kpi-operational-pct').textContent = `${formatPercent(m.operationalOccupancyPct)} da cap. útil`;
+
+        const bar = document.getElementById('kpi-progress-bar');
+        bar.setAttribute('aria-valuenow', m.occupancyPct.toFixed(1));
+        document.getElementById('kpi-bar-occupied').style.width = `${m.occupancyPct}%`;
+        document.getElementById('kpi-bar-unavailable').style.width = `${m.unavailablePct}%`;
+
+        document.getElementById('kpi-free-count').textContent = m.free;
+        document.getElementById('kpi-free-pct').textContent = `${formatPercent(m.freePct)} de 150`;
+
+        document.getElementById('kpi-occupied-count').textContent = m.occupied;
+        document.getElementById('kpi-occupied-pct').textContent = `${formatPercent(m.occupancyPct)} de 150`;
+        document.getElementById('kpi-units-summary').textContent =
+          `${m.totalUnits.toLocaleString('pt-BR')} unidades · ${m.distinctSkusCount} SKUs distintos`;
+
+        document.getElementById('kpi-unavailable-count').textContent = m.unavailable;
+        document.getElementById('kpi-unavailable-pct').textContent = `${formatPercent(m.unavailablePct)} de 150`;
+        document.getElementById('kpi-operational-count').textContent = `${m.operational} posições operacionais`;
+
+        // Barra resumida de ocupação por Rua
+        const streetBar = document.getElementById('street-summary-bar');
+        streetBar.innerHTML = RUAS.map((rua) => {
+          const st = m.byStreet[rua];
+          const pct = (st.occupied / st.total) * 100;
+          const isSelected = ui.streetFilter === rua;
+          return `
+            <button
+              type="button"
+              class="street-stat-btn ${isSelected ? 'is-selected' : ''}"
+              data-quick-street="${rua}"
+              title="Filtrar mapa para ${rua}"
+            >
+              <div class="street-stat-top">
+                <span class="street-stat-name">${rua}</span>
+                <span class="street-stat-pct">${formatPercent(pct)}</span>
+              </div>
+              <div class="progress-track" aria-hidden="true">
+                <div class="progress-fill-occupied" style="width: ${pct}%"></div>
+                <div class="progress-fill-unavailable" style="width: ${(st.unavailable / st.total) * 100}%"></div>
+              </div>
+              <div class="street-stat-detail">${st.occupied} ocup. · ${st.free} livres · ${st.unavailable} indisp.</div>
+            </button>
+          `;
+        }).join('');
+      }
+
+      function renderWarehouseMap() {
+        const container = document.getElementById('warehouse-map');
+        const streetsToShow = ui.streetFilter === 'ALL' ? RUAS : [ui.streetFilter];
+        const hasSearch = ui.searchQuery.trim().length > 0;
+        const m = computeMetrics();
+
+        const html = streetsToShow.map((rua) => {
+          const st = m.byStreet[rua];
+          const pct = (st.occupied / st.total) * 100;
+
+          const modulesHtml = MODULOS.map((modulo) => {
+            const levelsHtml = NIVEIS_DISPLAY.map((nivel) => {
+              const address = buildAddress(rua, modulo, nivel);
+              const slot = state.slots[address];
+              const isSelected = ui.selectedAddress === address;
+              const isMatch = hasSearch && ui.matchedAddresses.has(address);
+
+              // Atenua células fora do filtro de status ou fora dos resultados da busca
+              const dimmedByStatus = ui.statusFilter !== 'ALL' && slot.status !== ui.statusFilter;
+              const dimmedBySearch = hasSearch && !isMatch;
+              const isDimmed = dimmedByStatus || dimmedBySearch;
+
+              const nivelShort = 'N' + nivel.split('-')[1];
+              let labelText = 'Livre';
+              let qtyHtml = '';
+
+              if (slot.status === 'Ocupado') {
+                labelText = slot.sku || slot.productName;
+                qtyHtml = `<span class="slot-qty">${slot.quantity}</span>`;
+              } else if (slot.status === 'Indisponivel') {
+                labelText = 'Indisp.';
+              }
+
+              const tooltip = slot.status === 'Ocupado'
+                ? `${address} — Ocupado: ${slot.sku} (${slot.productName}) · Qtd: ${slot.quantity}`
+                : slot.status === 'Indisponivel'
+                  ? `${address} — Indisponível${slot.note ? ': ' + slot.note : ''}`
+                  : `${address} — Livre`;
+
+              return `
+                <button
+                  type="button"
+                  class="slot-cell status-${slot.status} ${isSelected ? 'is-selected' : ''} ${isMatch ? 'is-match' : ''} ${isDimmed ? 'is-dimmed' : ''}"
+                  data-address="${address}"
+                  title="${escapeHtml(tooltip)}"
+                  aria-label="${escapeHtml(tooltip)}"
+                >
+                  <div class="slot-top">
+                    <span class="slot-level">${nivelShort}</span>
+                    ${qtyHtml}
+                  </div>
+                  <div class="slot-state-label">${escapeHtml(labelText)}</div>
+                </button>
+              `;
+            }).join('');
+
+            return `
+              <div class="rack-module">
+                <div class="rack-module-header">
+                  <span class="rack-module-name">${modulo}</span>
+                  <span class="rack-module-hint">5 níveis</span>
+                </div>
+                <div class="levels-stack">
+                  ${levelsHtml}
+                </div>
+                <div class="rack-floor-line" aria-hidden="true"></div>
+              </div>
+            `;
+          }).join('');
+
+          return `
+            <div class="street-block" data-street-block="${rua}">
+              <div class="street-header">
+                <div class="street-title">
+                  <span>${rua}</span>
+                </div>
+                <div class="street-counts">
+                  ${st.occupied} ocupadas · ${st.free} livres · ${st.unavailable} indisponíveis · ${formatPercent(pct)} ocupação
+                </div>
+              </div>
+              <div class="modules-grid">
+                ${modulesHtml}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        container.innerHTML = html;
+      }
+
+      function renderSearchResults() {
+        const query = ui.searchQuery.trim().toLowerCase();
+        const resultsBox = document.getElementById('search-results-box');
+        const resultsList = document.getElementById('search-results-list');
+        const resultsCount = document.getElementById('search-results-count');
+        const clearBtn = document.getElementById('btn-clear-search');
+
+        ui.matchedAddresses.clear();
+
+        if (!query) {
+          resultsBox.classList.remove('is-visible');
+          clearBtn.classList.remove('is-visible');
+          return;
+        }
+
+        clearBtn.classList.add('is-visible');
+        resultsBox.classList.add('is-visible');
+
+        const matches = Object.values(state.slots).filter((slot) => {
+          const inAddress = slot.address.toLowerCase().includes(query);
+          const inSku = slot.sku && slot.sku.toLowerCase().includes(query);
+          const inName = slot.productName && slot.productName.toLowerCase().includes(query);
+          const inNote = slot.note && slot.note.toLowerCase().includes(query);
+          return inAddress || inSku || inName || inNote;
+        });
+
+        // Prioriza posições ocupadas na listagem de busca de produtos
+        matches.sort((a, b) => {
+          if (a.status === 'Ocupado' && b.status !== 'Ocupado') return -1;
+          if (a.status !== 'Ocupado' && b.status === 'Ocupado') return 1;
+          return a.address.localeCompare(b.address);
+        });
+
+        for (const slot of matches) {
+          ui.matchedAddresses.add(slot.address);
+        }
+
+        resultsCount.textContent = matches.length === 1
+          ? '1 posição encontrada'
+          : `${matches.length} posições encontradas`;
+
+        if (matches.length === 0) {
+          resultsList.innerHTML = `
+            <div class="search-empty">
+              Nenhum produto ou endereço encontrado para "<strong>${escapeHtml(ui.searchQuery)}</strong>".
+            </div>
+          `;
+          return;
+        }
+
+        resultsList.innerHTML = matches.slice(0, 30).map((slot) => {
+          const title = slot.status === 'Ocupado'
+            ? `${escapeHtml(slot.sku)} · ${escapeHtml(slot.productName)} (${slot.quantity} un.)`
+            : `Posição ${getStatusDisplayLabel(slot.status)}${slot.note ? ' — ' + escapeHtml(slot.note) : ''}`;
+
+          return `
+            <div class="search-result-item">
+              <div class="search-result-main">
+                <div class="search-result-title">${title}</div>
+                <div class="search-result-loc">
+                  <span class="mono">${slot.address}</span>
+                  <span class="meta-sep" aria-hidden="true">·</span>
+                  <span>Rua: <strong>${slot.rua}</strong></span>
+                  <span class="meta-sep" aria-hidden="true">·</span>
+                  <span>Módulo: <strong>${slot.modulo}</strong></span>
+                  <span class="meta-sep" aria-hidden="true">·</span>
+                  <span>Nível: <strong>${getNivelLabel(slot.nivel)}</strong></span>
+                </div>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" data-locate-address="${slot.address}">
+                Localizar no Mapa
+              </button>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function renderInspector() {
+        const slot = state.slots[ui.selectedAddress] || state.slots['RUA-A / MOD-01 / NIVEL-1'];
+        document.getElementById('insp-address').textContent = slot.address;
+        document.getElementById('insp-meta').textContent =
+          `${slot.rua} · ${slot.modulo} · ${getNivelLabel(slot.nivel)}`;
+
+        const detailsEl = document.getElementById('insp-details');
+        const actionsEl = document.getElementById('insp-actions');
+
+        let rowsHtml = `
+          <div class="detail-row">
+            <span class="detail-key">Estado atual</span>
+            <span class="detail-val">${getStatusDisplayLabel(slot.status)}</span>
+          </div>
+        `;
+
+        if (slot.status === 'Ocupado') {
+          rowsHtml += `
+            <div class="detail-row">
+              <span class="detail-key">Código / SKU</span>
+              <span class="detail-val mono">${escapeHtml(slot.sku)}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-key">Produto</span>
+              <span class="detail-val">${escapeHtml(slot.productName)}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-key">Quantidade em estoque</span>
+              <span class="detail-val tabular">${slot.quantity.toLocaleString('pt-BR')} un.</span>
+            </div>
+          `;
+        }
+
+        if (slot.note) {
+          rowsHtml += `
+            <div class="detail-row">
+              <span class="detail-key">Observação</span>
+              <span class="detail-val">${escapeHtml(slot.note)}</span>
+            </div>
+          `;
+        }
+
+        rowsHtml += `
+          <div class="detail-row">
+            <span class="detail-key">Última atualização</span>
+            <span class="detail-val tabular">${formatDateTime(slot.updatedAt)}</span>
+          </div>
+        `;
+
+        detailsEl.innerHTML = rowsHtml;
+
+        // Ações contextuais conforme o estado da posição
+        if (slot.status === 'Livre') {
+          actionsEl.innerHTML = `
+            <button type="button" class="btn btn-primary btn-block" id="insp-btn-putaway">
+              Receber Produto Nesta Posição
+            </button>
+            <button type="button" class="btn btn-secondary btn-block" id="insp-btn-adjust">
+              Alterar Estado / Ajuste Manual
+            </button>
+          `;
+          document.getElementById('insp-btn-putaway').addEventListener('click', () => {
+            prefillPutawayAddress(slot.address);
+            switchOpsTab('putaway');
+            document.getElementById('put-sku').focus();
+          });
+          document.getElementById('insp-btn-adjust').addEventListener('click', () => {
+            prefillAdjustAddress(slot.address);
+            switchOpsTab('adjust');
+          });
+        } else if (slot.status === 'Ocupado') {
+          actionsEl.innerHTML = `
+            <button type="button" class="btn btn-rose btn-block" id="insp-btn-picking">
+              Registrar Saída (Picking)
+            </button>
+            <button type="button" class="btn btn-secondary btn-block" id="insp-btn-adjust">
+              Ajustar Quantidade ou Dados
+            </button>
+          `;
+          document.getElementById('insp-btn-picking').addEventListener('click', () => {
+            populatePickingSelect(slot.address);
+            switchOpsTab('picking');
+            document.getElementById('pick-qty').focus();
+          });
+          document.getElementById('insp-btn-adjust').addEventListener('click', () => {
+            prefillAdjustAddress(slot.address);
+            switchOpsTab('adjust');
+          });
+        } else {
+          actionsEl.innerHTML = `
+            <button type="button" class="btn btn-primary btn-block" id="insp-btn-unblock">
+              Liberar Posição (Marcar Livre)
+            </button>
+            <button type="button" class="btn btn-secondary btn-block" id="insp-btn-adjust">
+              Editar Ajuste / Observação
+            </button>
+          `;
+          document.getElementById('insp-btn-unblock').addEventListener('click', () => {
+            slot.status = 'Livre';
+            slot.note = '';
+            slot.updatedAt = new Date().toISOString();
+            addHistoryEntry('Ajuste Manual', slot.address, 'Posição liberada', 'Estado alterado de Indisponível para Livre.');
+            saveState();
+            renderAll();
+            showToast(`Posição ${slot.address} liberada com sucesso.`);
+          });
+          document.getElementById('insp-btn-adjust').addEventListener('click', () => {
+            prefillAdjustAddress(slot.address);
+            switchOpsTab('adjust');
+          });
+        }
+      }
+
+      function renderInventoryAndHistory() {
+        const occupied = getOccupiedSlotsSorted();
+        document.getElementById('tab-inv-count').textContent = occupied.length;
+        document.getElementById('tab-hist-count').textContent = state.history.length;
+
+        const invBody = document.getElementById('inventory-tbody');
+        if (occupied.length === 0) {
+          invBody.innerHTML = `
+            <tr>
+              <td colspan="8" class="empty-table-state">
+                <p>Nenhum produto armazenado no momento. Todas as posições operacionais estão livres.</p>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-empty-putaway">Registrar Primeiro Recebimento</button>
+              </td>
+            </tr>
+          `;
+          const emptyBtn = document.getElementById('btn-empty-putaway');
+          if (emptyBtn) {
+            emptyBtn.addEventListener('click', () => {
+              const firstFree = findFirstFreeAddress();
+              if (firstFree) prefillPutawayAddress(firstFree);
+              switchOpsTab('putaway');
+              document.getElementById('operacoes-secao').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+          }
+        } else {
+          invBody.innerHTML = occupied.map((slot) => `
+            <tr>
+              <td class="mono">${slot.address}</td>
+              <td class="mono">${slot.rua}</td>
+              <td class="mono">${slot.modulo}</td>
+              <td>${getNivelLabel(slot.nivel)}</td>
+              <td class="mono">${escapeHtml(slot.sku)}</td>
+              <td>${escapeHtml(slot.productName)}</td>
+              <td class="num-col mono"><strong>${slot.quantity.toLocaleString('pt-BR')}</strong></td>
+              <td class="num-col">
+                <button type="button" class="btn btn-ghost btn-sm" data-inv-locate="${slot.address}">Ver</button>
+                <button type="button" class="btn btn-ghost btn-sm" data-inv-pick="${slot.address}">Saída</button>
+              </td>
+            </tr>
+          `).join('');
+        }
+
+        const histBody = document.getElementById('history-tbody');
+        if (state.history.length === 0) {
+          histBody.innerHTML = `
+            <tr>
+              <td colspan="5" class="empty-table-state">
+                Nenhuma movimentação registrada até o momento.
+              </td>
+            </tr>
+          `;
+        } else {
+          histBody.innerHTML = state.history.map((item) => `
+            <tr>
+              <td class="tabular" style="white-space: nowrap;">${formatDateTime(item.timestamp)}</td>
+              <td><strong>${escapeHtml(item.type)}</strong></td>
+              <td class="mono" style="white-space: nowrap;">${escapeHtml(item.address)}</td>
+              <td>${escapeHtml(item.summary)}</td>
+              <td>${escapeHtml(item.detail)}</td>
+            </tr>
+          `).join('');
+        }
+      }
+
+      function renderAll() {
+        renderPersistenceLabel();
+        renderDashboard();
+        renderSearchResults();
+        renderWarehouseMap();
+        renderInspector();
+        updatePutawaySlotNotice();
+        populatePickingSelect(document.getElementById('pick-address').value || ui.selectedAddress);
+        renderInventoryAndHistory();
+      }
+
+      /* ---------------------------------------------------------------------
+         8. SINCRONIZAÇÃO DE FORMULÁRIOS (PUTAWAY, PICKING, AJUSTES)
+         --------------------------------------------------------------------- */
+      function populateAddressSelects(ruaId, modId, nivelId) {
+        const ruaSel = document.getElementById(ruaId);
+        const modSel = document.getElementById(modId);
+        const nivelSel = document.getElementById(nivelId);
+
+        ruaSel.innerHTML = RUAS.map((r) => `<option value="${r}">${r}</option>`).join('');
+        modSel.innerHTML = MODULOS.map((m) => `<option value="${m}">${m}</option>`).join('');
+        nivelSel.innerHTML = NIVEIS.map((n) => `<option value="${n}">${n}</option>`).join('');
+      }
+
+      function prefillPutawayAddress(address) {
+        const parsed = parseAddress(address);
+        if (!parsed) return;
+        document.getElementById('put-rua').value = parsed.rua;
+        document.getElementById('put-mod').value = parsed.modulo;
+        document.getElementById('put-nivel').value = parsed.nivel;
+        document.getElementById('put-address-text').value = parsed.address;
+        updatePutawaySlotNotice();
+      }
+
+      function syncPutawayTextFromSelects() {
+        const addr = buildAddress(
+          document.getElementById('put-rua').value,
+          document.getElementById('put-mod').value,
+          document.getElementById('put-nivel').value
+        );
+        document.getElementById('put-address-text').value = addr;
+        updatePutawaySlotNotice();
+      }
+
+      function updatePutawaySlotNotice() {
+        const noticeEl = document.getElementById('put-slot-status');
+        const rawText = document.getElementById('put-address-text').value;
+        const parsed = parseAddress(rawText);
+
+        if (!parsed) {
+          noticeEl.className = 'slot-status-notice notice-warn';
+          noticeEl.textContent = 'Formato inválido. Utilize o padrão "RUA-A / MOD-02 / NIVEL-3".';
+          return;
+        }
+
+        const slot = state.slots[parsed.address];
+        if (slot.status === 'Livre') {
+          noticeEl.className = 'slot-status-notice notice-ok';
+          noticeEl.textContent = `Posição ${slot.address} está Livre e pronta para recebimento.`;
+        } else if (slot.status === 'Ocupado') {
+          noticeEl.className = 'slot-status-notice notice-warn';
+          noticeEl.textContent = `Posição ocupada por ${slot.sku} (${slot.quantity} un.). Alocação bloqueada.`;
+        } else {
+          noticeEl.className = 'slot-status-notice notice-warn';
+          noticeEl.textContent = `Posição Indisponível${slot.note ? ' (' + slot.note + ')' : ''}. Alocação bloqueada.`;
+        }
+      }
+
+      function populatePickingSelect(preferredAddress) {
+        const select = document.getElementById('pick-address');
+        const occupied = getOccupiedSlotsSorted();
+
+        if (occupied.length === 0) {
+          select.innerHTML = '<option value="">Nenhuma posição ocupada disponível</option>';
+          select.disabled = true;
+          updatePickingInfo();
+          return;
+        }
+
+        select.disabled = false;
+        select.innerHTML = occupied.map((s) =>
+          `<option value="${s.address}">${s.address} — ${escapeHtml(s.sku)} (${s.quantity} un.)</option>`
+        ).join('');
+
+        if (preferredAddress && occupied.some((s) => s.address === preferredAddress)) {
+          select.value = preferredAddress;
+        }
+        updatePickingInfo();
+      }
+
+      function updatePickingInfo() {
+        const infoEl = document.getElementById('pick-item-info');
+        const addr = document.getElementById('pick-address').value;
+        const slot = state.slots[addr];
+
+        if (!slot || slot.status !== 'Ocupado') {
+          infoEl.className = 'slot-status-notice';
+          infoEl.textContent = 'Não há posições ocupadas para saída no momento.';
+          return;
+        }
+
+        infoEl.className = 'slot-status-notice';
+        infoEl.innerHTML = `
+          <strong>${escapeHtml(slot.sku)}</strong> · ${escapeHtml(slot.productName)}<br />
+          Estoque atual em <span class="mono">${slot.address}</span>: <strong>${slot.quantity.toLocaleString('pt-BR')} unidades</strong>
+        `;
+      }
+
+      function prefillAdjustAddress(address) {
+        const parsed = parseAddress(address);
+        if (!parsed) return;
+        document.getElementById('adj-rua').value = parsed.rua;
+        document.getElementById('adj-mod').value = parsed.modulo;
+        document.getElementById('adj-nivel').value = parsed.nivel;
+        loadAdjustFieldsForSelectedAddress();
+      }
+
+      function loadAdjustFieldsForSelectedAddress() {
+        const addr = buildAddress(
+          document.getElementById('adj-rua').value,
+          document.getElementById('adj-mod').value,
+          document.getElementById('adj-nivel').value
+        );
+        document.getElementById('adj-address-preview').textContent = addr;
+
+        const slot = state.slots[addr];
+        if (!slot) return;
+
+        document.getElementById('adj-status').value = slot.status;
+        document.getElementById('adj-sku').value = slot.sku || '';
+        document.getElementById('adj-name').value = slot.productName || '';
+        document.getElementById('adj-qty').value = slot.quantity > 0 ? slot.quantity : '';
+        document.getElementById('adj-note').value = slot.note || '';
+        toggleAdjustProductFields();
+        clearFormError('adj-error');
+      }
+
+      function toggleAdjustProductFields() {
+        const status = document.getElementById('adj-status').value;
+        const box = document.getElementById('adj-product-fields');
+        box.style.display = status === 'Ocupado' ? 'flex' : 'none';
+      }
+
+      function switchOpsTab(tabName) {
+        ui.activeOpsTab = tabName;
+        document.querySelectorAll('.ops-tab-btn').forEach((btn) => {
+          const active = btn.dataset.tab === tabName;
+          btn.classList.toggle('is-active', active);
+          btn.setAttribute('aria-selected', String(active));
+        });
+        document.querySelectorAll('.ops-pane').forEach((pane) => {
+          pane.classList.toggle('is-active', pane.id === `pane-${tabName}`);
+        });
+
+        if (tabName === 'putaway') {
+          updatePutawaySlotNotice();
+        } else if (tabName === 'picking') {
+          populatePickingSelect(ui.selectedAddress);
+        } else if (tabName === 'adjust') {
+          prefillAdjustAddress(ui.selectedAddress);
+        }
+      }
+
+      function showFormError(id, msg) {
+        const el = document.getElementById(id);
+        el.textContent = msg;
+        el.classList.add('is-visible');
+      }
+
+      function clearFormError(id) {
+        const el = document.getElementById(id);
+        el.textContent = '';
+        el.classList.remove('is-visible');
+      }
+
+      /* ---------------------------------------------------------------------
+         9. OPERAÇÕES DO WMS (PUTAWAY, PICKING, AJUSTES MANUAIS)
+         --------------------------------------------------------------------- */
+      function handlePutawaySubmit(e) {
+        e.preventDefault();
+        clearFormError('put-error');
+
+        const sku = document.getElementById('put-sku').value.trim().toUpperCase();
+        const productName = document.getElementById('put-name').value.trim();
+        const qtyRaw = document.getElementById('put-qty').value.trim();
+        const addressRaw = document.getElementById('put-address-text').value.trim();
+
+        // Validações obrigatórias
+        if (!sku) {
+          return showFormError('put-error', 'Informe o código ou SKU do produto.');
+        }
+        if (!productName) {
+          return showFormError('put-error', 'Informe o nome do produto.');
+        }
+        const qty = Number(qtyRaw);
+        if (!qtyRaw || !Number.isInteger(qty) || qty <= 0) {
+          return showFormError('put-error', 'A quantidade deve ser um número inteiro positivo maior que zero.');
+        }
+        const parsed = parseAddress(addressRaw);
+        if (!parsed || !state.slots[parsed.address]) {
+          return showFormError('put-error', 'Endereço inválido. Use o formato "RUA-A / MOD-02 / NIVEL-3" (Ruas A–F, Módulos 01–05, Níveis 1–5).');
+        }
+
+        const slot = state.slots[parsed.address];
+        if (slot.status === 'Ocupado') {
+          return showFormError('put-error', `A posição ${slot.address} já está ocupada por ${slot.sku}. Escolha uma posição livre ou use Ajustes Manuais.`);
+        }
+        if (slot.status === 'Indisponivel') {
+          return showFormError('put-error', `A posição ${slot.address} está Indisponível e não pode receber produtos.`);
+        }
+
+        // Efetiva o recebimento
+        slot.status = 'Ocupado';
+        slot.sku = sku;
+        slot.productName = productName;
+        slot.quantity = qty;
+        slot.note = '';
+        slot.updatedAt = new Date().toISOString();
+
+        addHistoryEntry(
+          'Recebimento',
+          slot.address,
+          `${sku} · ${productName}`,
+          `Entrada de +${qty.toLocaleString('pt-BR')} un. alocada em ${slot.address}.`
+        );
+
+        ui.selectedAddress = slot.address;
+        saveState();
+        renderAll();
+
+        // Limpa campos do produto e prepara próximo recebimento
+        document.getElementById('put-sku').value = '';
+        document.getElementById('put-name').value = '';
+        document.getElementById('put-qty').value = '';
+        const nextFree = findFirstFreeAddress();
+        if (nextFree) prefillPutawayAddress(nextFree);
+
+        showToast(`Recebimento registrado: ${sku} (${qty} un.) em ${slot.address}.`);
+      }
+
+      function handlePickingSubmit(e) {
+        e.preventDefault();
+        clearFormError('pick-error');
+
+        const address = document.getElementById('pick-address').value;
+        const qtyRaw = document.getElementById('pick-qty').value.trim();
+        const note = document.getElementById('pick-note').value.trim();
+
+        const slot = state.slots[address];
+        if (!slot || slot.status !== 'Ocupado') {
+          return showFormError('pick-error', 'Selecione uma posição ocupada válida para registrar a saída.');
+        }
+
+        const qty = Number(qtyRaw);
+        if (!qtyRaw || !Number.isInteger(qty) || qty <= 0) {
+          return showFormError('pick-error', 'Informe uma quantidade de saída inteira e positiva.');
+        }
+        if (qty > slot.quantity) {
+          return showFormError('pick-error', `Quantidade solicitada (${qty}) excede o estoque disponível na posição (${slot.quantity} un.).`);
+        }
+
+        const prevSku = slot.sku;
+        const prevName = slot.productName;
+        const remaining = slot.quantity - qty;
+
+        if (remaining === 0) {
+          slot.status = 'Livre';
+          slot.sku = '';
+          slot.productName = '';
+          slot.quantity = 0;
+          slot.note = '';
+          slot.updatedAt = new Date().toISOString();
+
+          addHistoryEntry(
+            'Saída (Total)',
+            slot.address,
+            `${prevSku} · ${prevName}`,
+            `Retirada total de -${qty.toLocaleString('pt-BR')} un. Posição liberada.${note ? ' Obs.: ' + note : ''}`
+          );
+          showToast(`Saída total concluída (${prevSku}). Posição ${slot.address} agora está Livre.`);
+        } else {
+          slot.quantity = remaining;
+          slot.updatedAt = new Date().toISOString();
+
+          addHistoryEntry(
+            'Saída (Parcial)',
+            slot.address,
+            `${prevSku} · ${prevName}`,
+            `Retirada de -${qty.toLocaleString('pt-BR')} un. Saldo restante: ${remaining.toLocaleString('pt-BR')} un.${note ? ' Obs.: ' + note : ''}`
+          );
+          showToast(`Saída registrada: -${qty} un. de ${prevSku}. Restam ${remaining} un. em ${slot.address}.`);
+        }
+
+        ui.selectedAddress = slot.address;
+        document.getElementById('pick-qty').value = '';
+        document.getElementById('pick-note').value = '';
+        saveState();
+        renderAll();
+      }
+
+      function handleAdjustSubmit(e) {
+        e.preventDefault();
+        clearFormError('adj-error');
+
+        const address = buildAddress(
+          document.getElementById('adj-rua').value,
+          document.getElementById('adj-mod').value,
+          document.getElementById('adj-nivel').value
+        );
+        const slot = state.slots[address];
+        if (!slot) {
+          return showFormError('adj-error', 'Endereço selecionado inválido.');
+        }
+
+        const newStatus = document.getElementById('adj-status').value;
+        const note = document.getElementById('adj-note').value.trim();
+        const prevStatus = slot.status;
+        const prevQty = slot.quantity;
+        const prevSku = slot.sku;
+
+        if (newStatus === 'Ocupado') {
+          const sku = document.getElementById('adj-sku').value.trim().toUpperCase();
+          const name = document.getElementById('adj-name').value.trim();
+          const qtyRaw = document.getElementById('adj-qty').value.trim();
+          const qty = Number(qtyRaw);
+
+          if (!sku) {
+            return showFormError('adj-error', 'Informe o SKU do produto para manter a posição como Ocupada.');
+          }
+          if (!name) {
+            return showFormError('adj-error', 'Informe o nome do produto.');
+          }
+          if (!qtyRaw || !Number.isInteger(qty) || qty <= 0) {
+            return showFormError('adj-error', 'A quantidade ajustada deve ser um número inteiro maior que zero.');
+          }
+
+          slot.status = 'Ocupado';
+          slot.sku = sku;
+          slot.productName = name;
+          slot.quantity = qty;
+          slot.note = note;
+          slot.updatedAt = new Date().toISOString();
+
+          const detail = prevStatus === 'Ocupado'
+            ? `Ajuste de estoque (${prevSku} ${prevQty} -> ${sku} ${qty} un.).${note ? ' Motivo: ' + note : ''}`
+            : `Estado alterado de ${getStatusDisplayLabel(prevStatus)} para Ocupado com ${qty} un.${note ? ' Motivo: ' + note : ''}`;
+
+          addHistoryEntry('Ajuste Manual', slot.address, `${sku} · ${name}`, detail);
+          showToast(`Ajuste manual salvo em ${slot.address} (Ocupado · ${qty} un.).`);
+        } else if (newStatus === 'Livre') {
+          slot.status = 'Livre';
+          slot.sku = '';
+          slot.productName = '';
+          slot.quantity = 0;
+          slot.note = note;
+          slot.updatedAt = new Date().toISOString();
+
+          addHistoryEntry(
+            'Ajuste Manual',
+            slot.address,
+            prevSku ? `Removido ${prevSku}` : 'Posição livre',
+            `Estado definido manualmente como Livre.${note ? ' Motivo: ' + note : ''}`
+          );
+          showToast(`Posição ${slot.address} ajustada para Livre.`);
+        } else {
+          slot.status = 'Indisponivel';
+          slot.sku = '';
+          slot.productName = '';
+          slot.quantity = 0;
+          slot.note = note || 'Bloqueado manualmente';
+          slot.updatedAt = new Date().toISOString();
+
+          addHistoryEntry(
+            'Ajuste Manual',
+            slot.address,
+            'Posição indisponível',
+            `Bloqueio manual registrado.${slot.note ? ' Motivo: ' + slot.note : ''}`
+          );
+          showToast(`Posição ${slot.address} marcada como Indisponível.`);
+        }
+
+        ui.selectedAddress = slot.address;
+        saveState();
+        renderAll();
+      }
+
+      /* ---------------------------------------------------------------------
+         10. LOCALIZAÇÃO, TOASTS E MODAL IN-APP
+         --------------------------------------------------------------------- */
+      function selectAndFocusSlot(address, scrollIntoView) {
+        const parsed = parseAddress(address);
+        if (!parsed || !state.slots[parsed.address]) return;
+
+        ui.selectedAddress = parsed.address;
+
+        // Se a rua estiver filtrada para outra, abre todas para garantir visibilidade
+        if (ui.streetFilter !== 'ALL' && ui.streetFilter !== parsed.rua) {
+          setStreetFilter('ALL');
+        }
+        if (ui.statusFilter !== 'ALL' && ui.statusFilter !== state.slots[parsed.address].status) {
+          setStatusFilter('ALL');
+        }
+
+        renderWarehouseMap();
+        renderInspector();
+
+        // Sincroniza os seletores dos formulários conforme contexto
+        if (ui.activeOpsTab === 'putaway') {
+          prefillPutawayAddress(parsed.address);
+        } else if (ui.activeOpsTab === 'picking' && state.slots[parsed.address].status === 'Ocupado') {
+          populatePickingSelect(parsed.address);
+        } else if (ui.activeOpsTab === 'adjust') {
+          prefillAdjustAddress(parsed.address);
+        }
+
+        if (scrollIntoView) {
+          const cell = document.querySelector(`.slot-cell[data-address="${parsed.address}"]`);
+          if (cell) {
+            cell.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+      }
+
+      function setStreetFilter(street) {
+        ui.streetFilter = street;
+        document.querySelectorAll('#street-filter-group .seg-btn').forEach((btn) => {
+          btn.classList.toggle('is-active', btn.dataset.street === street);
+        });
+        renderDashboard();
+        renderWarehouseMap();
+      }
+
+      function setStatusFilter(status) {
+        ui.statusFilter = status;
+        document.querySelectorAll('#status-filter-group .seg-btn').forEach((btn) => {
+          btn.classList.toggle('is-active', btn.dataset.status === status);
+        });
+        renderWarehouseMap();
+      }
+
+      function showToast(message, isError) {
+        const region = document.getElementById('toast-region');
+        const toast = document.createElement('div');
+        toast.className = `toast ${isError ? 'toast-error' : ''}`;
+        toast.innerHTML = `
+          <span>${escapeHtml(message)}</span>
+          <button type="button" class="toast-close" aria-label="Fechar notificação">&times;</button>
+        `;
+        const remove = () => {
+          if (toast.parentNode) toast.parentNode.removeChild(toast);
+        };
+        toast.querySelector('.toast-close').addEventListener('click', remove);
+        region.appendChild(toast);
+        setTimeout(remove, 4200);
+      }
+
+      function openConfirmModal(title, message, onConfirm) {
+        document.getElementById('confirm-modal-title').textContent = title;
+        document.getElementById('confirm-modal-text').textContent = message;
+        ui.pendingConfirmAction = onConfirm;
+        document.getElementById('confirm-modal').classList.add('is-open');
+        document.getElementById('confirm-modal-ok').focus();
+      }
+
+      function closeConfirmModal() {
+        document.getElementById('confirm-modal').classList.remove('is-open');
+        ui.pendingConfirmAction = null;
+      }
+
+      /* ---------------------------------------------------------------------
+         11. EXPORTAÇÃO / IMPORTAÇÃO / RESET
+         --------------------------------------------------------------------- */
+      function exportWarehouseJson() {
+        const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `wms-rhiany-barto-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showToast('Backup JSON exportado com sucesso.');
+      }
+
+      function handleImportJson(e) {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const parsed = JSON.parse(String(reader.result));
+            if (!parsed || typeof parsed.slots !== 'object') {
+              throw new Error('Arquivo inválido');
+            }
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+            loadState();
+            saveState();
+            renderAll();
+            showToast('Dados do armazém importados com sucesso.');
+          } catch {
+            showToast('Arquivo JSON inválido para este WMS.', true);
+          }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+      }
+
+      /* ---------------------------------------------------------------------
+         12. INICIALIZAÇÃO E EVENT LISTENERS
+         --------------------------------------------------------------------- */
+      function bindEvents() {
+        // Navegação superior
+        document.querySelectorAll('.topbar-nav .nav-link').forEach((link) => {
+          link.addEventListener('click', () => {
+            document.querySelectorAll('.topbar-nav .nav-link').forEach((l) => l.classList.remove('is-active'));
+            link.classList.add('is-active');
+            const target = link.dataset.nav;
+            if (target === 'putaway') switchOpsTab('putaway');
+            else if (target === 'picking') switchOpsTab('picking');
+            else if (target === 'ajuste') switchOpsTab('adjust');
+          });
+        });
+
+        // CTA principal do cabeçalho
+        document.getElementById('btn-header-putaway').addEventListener('click', () => {
+          const freeAddr = findFirstFreeAddress();
+          if (freeAddr) prefillPutawayAddress(freeAddr);
+          switchOpsTab('putaway');
+          document.getElementById('operacoes-secao').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          document.getElementById('put-sku').focus();
+        });
+
+        // Clique nos cards de resumo por rua (alterna filtro)
+        document.getElementById('street-summary-bar').addEventListener('click', (e) => {
+          const btn = e.target.closest('[data-quick-street]');
+          if (!btn) return;
+          const street = btn.dataset.quickStreet;
+          setStreetFilter(ui.streetFilter === street ? 'ALL' : street);
+        });
+
+        // Filtros segmentados
+        document.getElementById('street-filter-group').addEventListener('click', (e) => {
+          const btn = e.target.closest('[data-street]');
+          if (btn) setStreetFilter(btn.dataset.street);
+        });
+
+        document.getElementById('status-filter-group').addEventListener('click', (e) => {
+          const btn = e.target.closest('[data-status]');
+          if (btn) setStatusFilter(btn.dataset.status);
+        });
+
+        // Busca em tempo real
+        const searchInput = document.getElementById('search-input');
+        searchInput.addEventListener('input', () => {
+          ui.searchQuery = searchInput.value;
+          renderSearchResults();
+          renderWarehouseMap();
+        });
+
+        document.getElementById('btn-clear-search').addEventListener('click', () => {
+          searchInput.value = '';
+          ui.searchQuery = '';
+          renderSearchResults();
+          renderWarehouseMap();
+          searchInput.focus();
+        });
+
+        // Clique em "Localizar no Mapa" nos resultados da busca
+        document.getElementById('search-results-list').addEventListener('click', (e) => {
+          const btn = e.target.closest('[data-locate-address]');
+          if (!btn) return;
+          selectAndFocusSlot(btn.dataset.locateAddress, true);
+          switchOpsTab('inspector');
+        });
+
+        // Clique em qualquer uma das 150 posições do mapa visual
+        document.getElementById('warehouse-map').addEventListener('click', (e) => {
+          const cell = e.target.closest('.slot-cell');
+          if (!cell) return;
+          selectAndFocusSlot(cell.dataset.address, false);
+        });
+
+        // Abas do painel operacional
+        document.querySelectorAll('.ops-tab-btn').forEach((btn) => {
+          btn.addEventListener('click', () => switchOpsTab(btn.dataset.tab));
+        });
+
+        // Formulário de Recebimento (Putaway)
+        ['put-rua', 'put-mod', 'put-nivel'].forEach((id) => {
+          document.getElementById(id).addEventListener('change', syncPutawayTextFromSelects);
+        });
+
+        document.getElementById('put-address-text').addEventListener('input', (e) => {
+          const parsed = parseAddress(e.target.value);
+          if (parsed) {
+            document.getElementById('put-rua').value = parsed.rua;
+            document.getElementById('put-mod').value = parsed.modulo;
+            document.getElementById('put-nivel').value = parsed.nivel;
+          }
+          updatePutawaySlotNotice();
+        });
+
+        document.getElementById('btn-suggest-free').addEventListener('click', () => {
+          const freeAddr = findFirstFreeAddress();
+          if (!freeAddr) {
+            showToast('Não há posições livres disponíveis no armazém.', true);
+            return;
+          }
+          prefillPutawayAddress(freeAddr);
+          selectAndFocusSlot(freeAddr, true);
+          showToast(`Posição livre sugerida: ${freeAddr}`);
+        });
+
+        document.getElementById('form-putaway').addEventListener('submit', handlePutawaySubmit);
+
+        // Formulário de Saída (Picking)
+        document.getElementById('pick-address').addEventListener('change', () => {
+          updatePickingInfo();
+          const addr = document.getElementById('pick-address').value;
+          if (addr) selectAndFocusSlot(addr, false);
+        });
+
+        document.getElementById('btn-pick-one').addEventListener('click', () => {
+          const slot = state.slots[document.getElementById('pick-address').value];
+          if (slot && slot.status === 'Ocupado') {
+            document.getElementById('pick-qty').value = 1;
+          }
+        });
+
+        document.getElementById('btn-pick-half').addEventListener('click', () => {
+          const slot = state.slots[document.getElementById('pick-address').value];
+          if (slot && slot.status === 'Ocupado') {
+            document.getElementById('pick-qty').value = Math.max(1, Math.floor(slot.quantity / 2));
+          }
+        });
+
+        document.getElementById('btn-pick-all').addEventListener('click', () => {
+          const slot = state.slots[document.getElementById('pick-address').value];
+          if (slot && slot.status === 'Ocupado') {
+            document.getElementById('pick-qty').value = slot.quantity;
+          }
+        });
+
+        document.getElementById('form-picking').addEventListener('submit', handlePickingSubmit);
+
+        // Formulário de Ajustes Manuais
+        ['adj-rua', 'adj-mod', 'adj-nivel'].forEach((id) => {
+          document.getElementById(id).addEventListener('change', () => {
+            loadAdjustFieldsForSelectedAddress();
+            const addr = buildAddress(
+              document.getElementById('adj-rua').value,
+              document.getElementById('adj-mod').value,
+              document.getElementById('adj-nivel').value
+            );
+            ui.selectedAddress = addr;
+            renderWarehouseMap();
+            renderInspector();
+          });
+        });
+
+        document.getElementById('adj-status').addEventListener('change', toggleAdjustProductFields);
+        document.getElementById('form-adjust').addEventListener('submit', handleAdjustSubmit);
+
+        // Abas inferiores: Inventário vs Histórico
+        const btnInv = document.getElementById('btn-view-inventory');
+        const btnHist = document.getElementById('btn-view-history');
+
+        btnInv.addEventListener('click', () => {
+          ui.lowerTab = 'inventory';
+          btnInv.classList.add('is-active');
+          btnInv.setAttribute('aria-selected', 'true');
+          btnHist.classList.remove('is-active');
+          btnHist.setAttribute('aria-selected', 'false');
+          document.getElementById('view-inventory').style.display = 'block';
+          document.getElementById('view-history').style.display = 'none';
+          document.getElementById('lower-section-title').textContent = 'Inventário Atual';
+          document.getElementById('lower-section-subtitle').textContent = 'Todos os produtos atualmente armazenados nas posições ocupadas.';
+        });
+
+        btnHist.addEventListener('click', () => {
+          ui.lowerTab = 'history';
+          btnHist.classList.add('is-active');
+          btnHist.setAttribute('aria-selected', 'true');
+          btnInv.classList.remove('is-active');
+          btnInv.setAttribute('aria-selected', 'false');
+          document.getElementById('view-inventory').style.display = 'none';
+          document.getElementById('view-history').style.display = 'block';
+          document.getElementById('lower-section-title').textContent = 'Histórico de Movimentações';
+          document.getElementById('lower-section-subtitle').textContent = 'Registro cronológico de recebimentos, saídas e ajustes manuais.';
+        });
+
+        // Ações rápidas na tabela de inventário
+        document.getElementById('inventory-tbody').addEventListener('click', (e) => {
+          const locBtn = e.target.closest('[data-inv-locate]');
+          if (locBtn) {
+            selectAndFocusSlot(locBtn.dataset.invLocate, true);
+            switchOpsTab('inspector');
+            return;
+          }
+          const pickBtn = e.target.closest('[data-inv-pick]');
+          if (pickBtn) {
+            selectAndFocusSlot(pickBtn.dataset.invPick, false);
+            populatePickingSelect(pickBtn.dataset.invPick);
+            switchOpsTab('picking');
+            document.getElementById('operacoes-secao').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        });
+
+        // Ferramentas de dados
+        document.getElementById('btn-load-sample').addEventListener('click', () => {
+          openConfirmModal(
+            'Carregar cenário de exemplo?',
+            'Isso substituirá os dados atuais por um conjunto demonstrativo com 20 posições ocupadas e 6 indisponíveis.',
+            () => {
+              state = buildSampleState();
+              saveState();
+              renderAll();
+              showToast('Cenário de exemplo carregado.');
+            }
+          );
+        });
+
+        document.getElementById('btn-reset-warehouse').addEventListener('click', () => {
+          openConfirmModal(
+            'Zerar todo o armazém?',
+            'Todas as 150 posições voltarão ao estado Livre e o histórico será limpo. Esta ação não pode ser desfeita.',
+            () => {
+              state = {
+                slots: createEmptySlots(),
+                history: [],
+                lastSavedAt: new Date().toISOString()
+              };
+              saveState();
+              renderAll();
+              const firstFree = findFirstFreeAddress();
+              if (firstFree) prefillPutawayAddress(firstFree);
+              showToast('Armazém zerado. Todas as 150 posições estão livres.');
+            }
+          );
+        });
+
+        document.getElementById('btn-export-json').addEventListener('click', exportWarehouseJson);
+        document.getElementById('input-import-json').addEventListener('change', handleImportJson);
+
+        // Modal de confirmação
+        document.getElementById('confirm-modal-cancel').addEventListener('click', closeConfirmModal);
+        document.getElementById('confirm-modal-ok').addEventListener('click', () => {
+          const fn = ui.pendingConfirmAction;
+          closeConfirmModal();
+          if (typeof fn === 'function') fn();
+        });
+        document.getElementById('confirm-modal').addEventListener('click', (e) => {
+          if (e.target.id === 'confirm-modal') closeConfirmModal();
+        });
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') closeConfirmModal();
+        });
+      }
+
+      /* ---------------------------------------------------------------------
+         13. BOOTSTRAP DA APLICAÇÃO
+         --------------------------------------------------------------------- */
+      function init() {
+        populateAddressSelects('put-rua', 'put-mod', 'put-nivel');
+        populateAddressSelects('adj-rua', 'adj-mod', 'adj-nivel');
+        loadState();
+        bindEvents();
+
+        // Preenche o recebimento inicialmente com a primeira posição livre
+        const firstFree = findFirstFreeAddress() || 'RUA-A / MOD-01 / NIVEL-1';
+        prefillPutawayAddress(firstFree);
+        prefillAdjustAddress(ui.selectedAddress);
+
+        renderAll();
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>
